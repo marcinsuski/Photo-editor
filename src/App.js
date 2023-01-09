@@ -1,8 +1,10 @@
 import "./App.css";
 import Slider from "./Slider";
-import image from "./images/image.jpg";
 import SidebarItem from "./SidebarItem";
 import { useState } from "react";
+import { storage } from "./firebase";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import { v4 } from "uuid";
 
 const DEFAULT_OPTIONS = [
     {
@@ -101,6 +103,18 @@ function App() {
     const [selectedOptionIndex, setSelectedOptionIndex] = useState(0);
     const [options, setOptions] = useState(DEFAULT_OPTIONS);
     const selectedOption = options[selectedOptionIndex];
+    const [image, setImage] = useState([]);
+    const [imageList, setImageList] = useState([]);
+
+    function uploadImage() {
+        if (image == null) return;
+        const imageRef = ref(storage, `images/${v4() + image.name}`);
+        uploadBytes(imageRef, image).then((snapshot) => {
+            getDownloadURL(snapshot.ref).then((url) => {
+                setImageList((prev) => [url, ...prev]);
+            });
+        });
+    }
 
     const handleSLiderChange = ({ target }) => {
         setOptions((prevOptions) => {
@@ -111,20 +125,26 @@ function App() {
         });
     };
 
-    const getImageStyle =() => {
+    const getImageStyle = () => {
         const filters = options.map((option) => {
             return `${option.property}(${option.value}${option.unit})`;
-        })
+        });
 
-        return {filter: filters.join(' ')} 
-          
-    }
+        return { filter: filters.join(" ") };
+    };
 
     return (
         <div className="container">
-            <div className="main-image" style={ getImageStyle() }>
-                <img src={image} alt="" />
+            <div className="main-image" style={getImageStyle()}>
+                <img key={imageList} src={imageList} alt="" />
             </div>
+            <Slider
+                min={selectedOption.range.min}
+                max={selectedOption.range.max}
+                value={selectedOption.value}
+                handleChange={handleSLiderChange}
+                className="slider" id="myRange"
+            />
             <div className="sidebar">
                 {options.map((option, index) => {
                     return (
@@ -137,12 +157,20 @@ function App() {
                     );
                 })}
             </div>
-            <Slider
-                min={selectedOption.range.min}
-                max={selectedOption.range.max}
-                value={selectedOption.value}
-                handleChange={handleSLiderChange}
-            />
+            
+            <div className="upload">
+                <label htmlFor="file" class="custom-file-upload">
+                    <input
+                        type="file"
+                        name="file"
+                        onChange={(e) => {
+                            setImage(e.target.files[0]);
+                        }}
+                    />
+                </label>
+
+                <button onClick={uploadImage}>Upload Image</button>
+            </div>
         </div>
     );
 }
